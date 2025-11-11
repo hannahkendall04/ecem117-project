@@ -12,8 +12,9 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
 mcp = FastMCP("Email")
-SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
+SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
 
+# based on https://developers.google.com/workspace/gmail/api/quickstart/python
 def get_gmail_creds():
     """Get or refresh Gmail OAuth credentials."""
     creds = None
@@ -32,50 +33,85 @@ def get_gmail_creds():
             token.write(creds.to_json())
     return creds
 
-# from https://developers.google.com/workspace/gmail/api/guides/sending#python
+
+# based on https://developers.google.com/workspace/gmail/api/guides/sending#python
 @mcp.tool()
-def gmail_send_email():
-  """Create and send an email.
-   Print the returned draft's message and id.
-   Returns: Message object, including message id and message meta data.
-  """
+def gmail_send_email(subject: str, content: str):
+    """Create and send an email.
+    Returns: Message object, including message id and message meta data.
+    """
+    creds = get_gmail_creds()
 
-  load_dotenv()
-  creds = get_gmail_creds()
+    try:
+        # create gmail api client
+        service = build("gmail", "v1", credentials=creds)
 
-  try:
-    # create gmail api client
-    service = build("gmail", "v1", credentials=creds)
+        message = EmailMessage()
 
-    message = EmailMessage()
+        message.set_content(content)
 
-    message.set_content("This is automated draft mail")
+        message["To"] = "ecem117.project@gmail.com"
+        message["From"] = "ecem117.project@gmail.com"
+        message["Subject"] = subject
 
-    message["To"] = "ecem117.project@gmail.com"
-    message["From"] = "ecem117.project@gmail.com"
-    message["Subject"] = "Automated draft"
+        encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
-    # encoded message
-    encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+        create_message = {"raw": encoded_message}
+        sent_message = (
+            service.users()
+            .messages()
+            .send(userId="me", body=create_message)
+            .execute()
+        )
 
-    create_message = {"raw": encoded_message}
-    # pylint: disable=E1101
-    sent_message = (
-        service.users()
-        .messages()
-        .send(userId="me", body=create_message)
-        .execute()
-    )
-
-    print(f'Message sent! ID: {sent_message["id"]}')
+        print(f'Message sent! ID: {sent_message["id"]}')
 
 
-  except HttpError as error:
-    print(f"An error occurred: {error}")
-    sent_message = error
+    except HttpError as error:
+        print(f"An error occurred: {error}")
+        sent_message = error
 
-  return sent_message
+    return sent_message
+
+
+@mcp.tool()
+def gmail_find_emails():
+    """
+    Search for emails in an inbox and view their contents.
+    Returns: a list of found messages and their content.
+    """
+    creds = get_gmail_creds()
+
+    try:
+        # create gmail api client
+        service = build("gmail", "v1", credentials=creds)
+
+        results = (
+            service.users()
+            .messages()
+            .list(userId='me')
+            .execute()
+        )
+
+        messages = results.get("messages", [])
+        message_content = []
+        for message in messages:
+            next_content = (
+                service.users()
+                .messages()
+                .get(userId='me', id=message['id'])
+                .execute()
+            )
+            message_content.append(next_content)
+
+        return message_content
+
+    
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return e 
 
 
 if __name__ == "__main__":
+    load_dotenv()
     mcp.run(transport="stdio")
