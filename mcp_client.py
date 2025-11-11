@@ -24,18 +24,18 @@ async def run_agent():
         model,
         tools  
     )
-    # prompt = input("Enter email prompt: ")
-    # draft_response = await agent.ainvoke(
-    #     {
-    #         "messages": [
-    #             {
-    #                 "role": "user", 
-    #                 "content": "Call the tool provided to you regarding email sending! Do not ask for additional information before calling this tool."
-    #             }
-    #         ]
-    #     }
-    # )
-    # print(draft_response)
+    prompt = input("Enter email prompt: ")
+    draft_response = await agent.ainvoke(
+        {
+            "messages": [
+                {
+                    "role": "user", 
+                    "content": "Call the tool provided to you regarding email sending! Do not ask for additional information before calling this tool."
+                }
+            ]
+        }
+    )
+    print(draft_response)
 
 if __name__ == '__main__':
     load_dotenv()

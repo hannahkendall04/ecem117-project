@@ -58,7 +58,7 @@ def gmail_send_email():
     # encoded message
     encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
-    create_message = {"message": {"raw": encoded_message}}
+    create_message = {"raw": encoded_message}
     # pylint: disable=E1101
     sent_message = (
         service.users()
@@ -72,7 +72,7 @@ def gmail_send_email():
 
   except HttpError as error:
     print(f"An error occurred: {error}")
-    sent_message = None
+    sent_message = error
 
   return sent_message
 
