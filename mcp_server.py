@@ -1,36 +1,57 @@
 from mcp.server.fastmcp import FastMCP
 import base64
 from email.message import EmailMessage
+from dotenv import load_dotenv
+import os
 
 import google.auth
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
 
 mcp = FastMCP("Email")
+SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
+
+def get_gmail_creds():
+    """Get or refresh Gmail OAuth credentials."""
+    creds = None
+    if os.path.exists("token.json"):
+        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+
+    # If there are no valid creds, request them via browser
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+            creds = flow.run_local_server(port=0)
+        # Save for reuse
+        with open("token.json", "w") as token:
+            token.write(creds.to_json())
+    return creds
 
 # from https://developers.google.com/workspace/gmail/api/guides/sending#python
 @mcp.tool()
-def gmail_create_draft():
-  """Create and insert a draft email.
+def gmail_send_email():
+  """Create and send an email.
    Print the returned draft's message and id.
-   Returns: Draft object, including draft id and message meta data.
-
-  Load pre-authorized user credentials from the environment.
-  TODO(developer) - See https://developers.google.com/identity
-  for guides on implementing OAuth2 for the application.
+   Returns: Message object, including message id and message meta data.
   """
-  creds, _ = google.auth.default()
+
+  load_dotenv()
+  creds = get_gmail_creds()
 
   try:
     # create gmail api client
-    print("HEREEEE")
     service = build("gmail", "v1", credentials=creds)
 
     message = EmailMessage()
 
     message.set_content("This is automated draft mail")
 
-    message["To"] = "hbkendall@outlook.com"
+    message["To"] = "ecem117.project@gmail.com"
     message["From"] = "ecem117.project@gmail.com"
     message["Subject"] = "Automated draft"
 
@@ -39,20 +60,21 @@ def gmail_create_draft():
 
     create_message = {"message": {"raw": encoded_message}}
     # pylint: disable=E1101
-    draft = (
+    sent_message = (
         service.users()
-        .drafts()
-        .create(userId="me", body=create_message)
+        .messages()
+        .send(userId="me", body=create_message)
         .execute()
     )
 
-    print(f'Draft id: {draft["id"]}\nDraft message: {draft["message"]}')
+    print(f'Message sent! ID: {sent_message["id"]}')
+
 
   except HttpError as error:
     print(f"An error occurred: {error}")
-    draft = None
+    sent_message = None
 
-  return draft
+  return sent_message
 
 
 if __name__ == "__main__":
