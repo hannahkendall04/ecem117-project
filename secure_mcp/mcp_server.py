@@ -3,8 +3,12 @@ import base64
 from email.message import EmailMessage
 from dotenv import load_dotenv
 import os
+# security imports
+# FIX PATHS
+from ..lib.security_lib import MCPServerSanitizer
 
-import google.auth
+## TO DO - MAKE SECURE ##
+
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.oauth2.credentials import Credentials

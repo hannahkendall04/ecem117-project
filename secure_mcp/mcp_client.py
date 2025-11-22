@@ -3,13 +3,17 @@ from langchain.agents import create_agent
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 import asyncio
+# security imports 
+# FIX PATHS
+from ..lib.security_lib import MCPClientSanitizer
+
+## TO DO - MAKE SECURE ##
 
 client = MultiServerMCPClient(  
     {
         "email": {
-            "transport": "stdio",  # Local subprocess communication
+            "transport": "stdio",
             "command": "python",
-            # Absolute path to your mcp_server.py file
             "args": ["./mcp_server.py"],
         }
     }

@@ -1,9 +1,8 @@
 '''
 Model Context Protocol Sanitization Based Security Library.
-Provides security layers for three potential vulnerability points on MCP based systems:
-    1) Between MCP client and MCP server - sanitizes outgoing traffic from MCP client to MCP server
-    2) Between MCP client and external LLM - sanitizes outgoing traffic from MCP client to external LLM
-    3) On MCP server - sanitizes incoming prompts, incoming information from external systems, and outgoing information.
+Provides security layers for potential vulnerability points on MCP based systems:
+    1) Hosted on MCP client - sanitizes outgoing traffic from MCP client to MCP server
+    2) Hosted on MCP server - sanitizes incoming prompts, incoming information from external systems, and outgoing information.
 
 This library contains components that can be used independently or together, depending on the level of control 
 a developer has over their MCP clients/servers.
@@ -12,7 +11,7 @@ from langchain_ollama import ChatOllama
 import json
 import zlib
 
-class MCPClientLLMSanitizer():
+class MCPClientSanitizer():
     '''
     Sanitization class for use between MCP client and external LLMs. Methods are used to identify,
     extract, and store sensitive information being passed from MCP clients to external LLMs. Can
@@ -32,11 +31,13 @@ class MCPClientLLMSanitizer():
         self.params = {}
     
 
-    def sanitize_content(self, content: str):
+    def sanitize_content(self, content: str) -> str:
         '''
         Sanitize client content using local LLM. Store sensitize parameters for later use.
         Arguments:
             content: the content to be sanitized
+        Returns:
+            string containing the sanitized content
         ''' 
 
         identification_prompt = f"""
@@ -76,7 +77,12 @@ class MCPClientLLMSanitizer():
         {content}
         """
 
-        response = self.local_model.invoke(identification_prompt)
+        try:
+            response = self.local_model.invoke(identification_prompt)
+        except Exception as e:
+            print(f"Error generating response: {e}")
+            exit(-1)
+
         count = 0
 
         while response.content == '' and count <= 3:
@@ -94,22 +100,39 @@ class MCPClientLLMSanitizer():
             exit(-1)
         
         params = {}
+        inverse_params = {}
         for val in sensitive_values:
             bytes = val.encode("utf-8")
             hashed = zlib.crc32(bytes)
             params.update({str(hashed): val})
+            inverse_params.update({val: str(hashed)})
 
         self.params.update(params)
 
-        print(params)
+        modified_query = content 
+        for key, val in inverse_params.items():
+            modified_query = modified_query.replace(key, val)
+        
+        return modified_query
+    
+    def embed_sensitive_info(self, content: str): 
+        '''
+        Function to re-embed stored sensitive information into MCP/model response.
+        Args:
+            content: parameterized content to embed sensitive information into 
+        Returns:
+            string containing the original content embedded with stored sensitive information
+        '''
 
-        # return obj["modified_output"]
+        modified_content = content 
 
+        for key, val in self.params.items():
+            modified_content = modified_content.replace(key, val)
+        
+        # clear params from dictionary 
+        self.params.clear()
 
-
-class MCPClientServerSanitizer():
-    pass 
-
+        return modified_content
 
 class MCPServerSanitizer():
     pass
