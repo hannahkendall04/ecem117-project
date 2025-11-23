@@ -55,6 +55,7 @@ class MCPClientSanitizer():
         - API keys, tokens, secrets
         - Account numbers
         - Private company names
+        - Age
         - Any identifying, credential, or security-related value
 
         Rules:
