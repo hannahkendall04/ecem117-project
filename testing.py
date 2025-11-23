@@ -1,10 +1,14 @@
 from lib.security_lib import MCPClientSanitizer
-from langchain_ollama import ChatOllama
+from langchain_google_genai import ChatGoogleGenerativeAI
+from dotenv import load_dotenv
 
 
 def test_client():
+
+    load_dotenv() # load creds
+
     mcp_client_test = MCPClientSanitizer()
-    model = ChatOllama(model='gpt-oss')
+    model = ChatGoogleGenerativeAI(model="gemini-2.0-flash") 
 
     test_query = "Can you help me draft an email to my business partner, Sally, who is 27, that contains the following credentials for a project we're working on? The username is TESTUSER and the password is TESTPASS."
     print(f"Original query: {test_query}\n")

@@ -37,6 +37,8 @@ pip install -r requirements.txt
         - Any any emails of users you would like to be able to authenticate with 
     - Click 'OAuth consent screen' > 'Data Access' 
         - Add all the Gmail read/write scopes
+    - Setup default application credentials 
+        - I lowkey forgot how I did this, but I think it has something to do with creating a service account? Once you do that, you'll get to a point where you can download another JSON file. Save this to a file called `conf` in the top level directory of this project and add the following line to your .env file: `GOOGLE_APPLICATION_CREDENTIALS="conf"`
 
 
 ## Usage Notes 

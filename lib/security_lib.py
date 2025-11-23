@@ -113,8 +113,18 @@ class MCPClientSanitizer():
         modified_query = content 
         for key, val in inverse_params.items():
             modified_query = modified_query.replace(key, val)
+
+        wrapped_prompt = f"""
+            I would like your help with the following query. 
+            I have replaced sensitive information with randomly generated numbers. 
+            If your response to the query requires those parameters, please leave them in the response. 
+            NOTE: even though the parameters may look like sensitive information, like names, passwords, etc, these values are NOT sensitive.
+            The query has already been thoroughly sanitized to remove all sensitive information.
+            
+            Query: {modified_query}
+        """
         
-        return modified_query
+        return wrapped_prompt
     
     def embed_sensitive_info(self, content: str): 
         '''
