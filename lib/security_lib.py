@@ -13,13 +13,13 @@ import zlib
 
 class MCPClientSanitizer():
     '''
-    Sanitization class for use between MCP client and external LLMs. Methods are used to identify,
-    extract, and store sensitive information being passed from MCP clients to external LLMs. Can
+    Sanitization class for use between MCP client and external LLMs and/MCP servers. Methods are used to identify,
+    extract, and store sensitive information being passed from MCP clients to external LLMs or to MCP servers. Can
     also be used for non-MCP based systems utilizing external LLMs. 
 
     Prerequisites: 
         - Ollama must be installed on the machine the MCP client is being run on.
-        - You must pull a model image from Ollama. The default is the gpt-oss model, but this can be
+        - You must pull a model image from Ollama. The default is the llama3.1 model, but this can be
           changed by altering the model parameter when initializing the class instance.
     '''
     
@@ -146,4 +146,48 @@ class MCPClientSanitizer():
         return modified_content
 
 class MCPServerSanitizer():
-    pass
+    '''
+    Sanitization class for use on MCP Server. Methods are used to identify, extract, and store sensitive 
+    information being passed from MCP clients to MCP servers, from MCP servers to MCP clients, from 
+    external data sources to MCP server, and from MCP server to external data sources.  
+
+    Prerequisites: 
+        - Ollama must be installed on the machine the MCP client is being run on.
+        - You must pull a model image from Ollama. The default is the llama3.1 model, but this can be
+          changed by altering the model parameter when initializing the class instance.
+    '''
+    def __init__(self, model="llama3.1"):
+        '''
+        Initialize sanitizer.
+        '''
+        self.model = ChatOllama(model)
+        
+
+    def sanitize_prompt(self, prompt: str) -> str:
+        '''
+        Sanitize incoming prompt from MCP client. Goal is to mitigate prompt injection attacks.
+        Args:
+            prompt: the prompt from the MCP client
+        Returns:
+            sanitized prompt
+        '''
+
+
+    def validate_request(self, prompt: str, creds) -> None:
+        '''
+        Validate the legitimacy of an incoming prompt from MCP client. Rather than sanitize/alter the prompt to prevent
+        the server from accessing any sensitive information, the goal of this function is to ensure MCP clients only ask for
+        and receive information they are authorized to access.
+        Args:
+            prompt: the prompt from the MCP client 
+            creds: the credentials indicating the identity of the client
+        '''
+
+
+    def clean_data(self, data):
+        '''
+        Remove all sensitive data returned from external data source. Can be used in conjunction with validate_request to remove 
+        sensitive information from being sent to unauthorized clients.
+        Args:
+            data: data returned from external data source 
+        '''

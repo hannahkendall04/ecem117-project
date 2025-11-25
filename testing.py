@@ -10,7 +10,7 @@ def test_client():
     mcp_client_test = MCPClientSanitizer()
     model = ChatGoogleGenerativeAI(model="gemini-2.0-flash") 
 
-    test_query = "Can you help me draft an email to my business partner, Sally, who is 27, that contains the following credentials for a project we're working on? The username is TESTUSER and the password is TESTPASS."
+    test_query = "Can you help me draft an email to my business partner, Sally, that contains the following credentials for a project we're working on? The username is TESTUSER and the password is TESTPASS."
     print(f"Original query: {test_query}\n")
 
     sanitized_query = mcp_client_test.sanitize_content(test_query)
