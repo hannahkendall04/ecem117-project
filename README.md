@@ -57,9 +57,5 @@ python mcp_server.py
 To run the testing script for the library:
 
 ```shell
-# note that the testing script uses the gpt-oss model from Ollama
-# to install, make sure to pull the model image using the command:
-# ollama pull gpt-oss
-
 python testing.py
 ```
