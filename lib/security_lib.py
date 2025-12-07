@@ -10,6 +10,8 @@ a developer has over their MCP clients/servers.
 from langchain_ollama import ChatOllama
 import json
 import zlib
+import re
+from typing import Any, Iterable, Mapping
 
 class MCPClientSanitizer():
     '''
@@ -39,6 +41,7 @@ class MCPClientSanitizer():
         Returns:
             string containing the sanitized content
         ''' 
+
 
         identification_prompt = f"""
         You will be given a user query. Your job is ONLY to identify sensitive values.
@@ -219,6 +222,66 @@ class MCPServerSanitizer():
             prompt: the prompt from the MCP client 
             creds: the credentials indicating the identity of the client
         '''
+        if not isinstance(prompt, str) or not prompt.strip():
+            raise ValueError("Prompt must be a non-empty string.")
+
+        # Extract scopes/permissions from whatever structure the caller provides.
+        def _coerce_iterable(value: Any) -> Iterable[str]:
+            if value is None:
+                return []
+            if isinstance(value, str):
+                return [value]
+            if isinstance(value, Iterable):
+                return value
+            return [str(value)]
+
+        scopes = set()
+        if isinstance(creds, Mapping):
+            for key in ("scopes", "permissions", "roles", "allowed_actions"):
+                scopes.update([str(v).lower() for v in _coerce_iterable(creds.get(key))])
+        else:
+            for key in ("scopes", "permissions", "roles", "allowed_actions"):
+                if hasattr(creds, key):
+                    scopes.update([str(v).lower() for v in _coerce_iterable(getattr(creds, key))])
+
+        if not scopes:
+            raise PermissionError("No permissions/scopes provided; cannot authorize request.")
+
+        prompt_lower = prompt.lower()
+
+        # Very small heuristic action detector to enforce coarse scopes.
+        def _infer_action(text: str) -> str:
+            if any(word in text for word in ("delete", "remove", "erase", "purge")):
+                return "delete"
+            if any(word in text for word in ("send", "draft", "compose", "forward")):
+                return "send"
+            if any(word in text for word in ("read", "list", "find", "search", "fetch", "view")):
+                return "read"
+            return "unspecified"
+
+        requested_action = _infer_action(prompt_lower)
+
+        if "all" not in scopes and requested_action != "unspecified" and requested_action not in scopes:
+            raise PermissionError(
+                f"Requested action '{requested_action}' is not permitted for the provided credentials."
+            )
+
+        # Block obvious attempts to exfiltrate secrets unless the caller explicitly allows sensitive access.
+        sensitive_terms = (
+            "api key",
+            "token",
+            "password",
+            "private key",
+            "ssh key",
+            ".env",
+            "credential",
+            "secret",
+        )
+        if any(term in prompt_lower for term in sensitive_terms) and "sensitive_access" not in scopes:
+            raise PermissionError("Prompt requests sensitive data that this principal is not allowed to access.")
+
+        self.valid_request = True
+
 
 
     def clean_data(self, data):
@@ -228,3 +291,25 @@ class MCPServerSanitizer():
         Args:
             data: data returned from external data source 
         '''
+        patterns = [
+            (re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"), "<REDACTED_EMAIL>"),
+            (re.compile(r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"), "<REDACTED_PHONE>"),
+            (re.compile(r"\b(?:\d[ -]?){13,16}\b"), "<REDACTED_CARD>"),
+            (re.compile(r"\bsk-[A-Za-z0-9]{16,}\b", re.IGNORECASE), "<REDACTED_TOKEN>"),
+            (re.compile(r"\bAIza[0-9A-Za-z\-_]{35}\b"), "<REDACTED_TOKEN>"),
+            (re.compile(r"\b(?:token|secret|password|api[_-]?key|bearer)[\"'=:\\s]+[A-Za-z0-9._-]{6,}", re.IGNORECASE), "<REDACTED_SECRET>"),
+        ]
+
+        def _scrub(value: Any):
+            if isinstance(value, str):
+                cleaned = value
+                for pattern, replacement in patterns:
+                    cleaned = pattern.sub(replacement, cleaned)
+                return cleaned
+            if isinstance(value, Mapping):
+                return {k: _scrub(v) for k, v in value.items()}
+            if isinstance(value, list):
+                return [_scrub(item) for item in value]
+            return value
+
+        return _scrub(data)
