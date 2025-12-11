@@ -35,7 +35,43 @@ def test_server():
     sanitized_query = mcp_server_test.sanitize_prompt(test_query)
     print(f"SANITIZED QUERY: {sanitized_query}")
 
+def test_validate_request():
+    load_dotenv()
+
+    sanitizer = MCPServerSanitizer()
+
+    # Example credentials for different roles
+    sender_creds = {"client_id": "test_sender", "role": "sender"}
+    reader_creds = {"client_id": "test_reader", "role": "reader"}
+
+    # 1) Allowed: sender sending an email
+    good_send_prompt = "Please send an email summarizing our meeting."
+    print("\n--- TEST 1: sender sending (should be allowed) ---")
+    try:
+        ok = sanitizer.validate_request(good_send_prompt, sender_creds)
+        print("Result:", ok, "| valid_request:", sanitizer.valid_request)
+    except PermissionError as e:
+        print("Unexpected block:", e)
+
+    # 2) Blocked: reader trying to send an email
+    bad_send_prompt = "Send an email to my boss about our quarterly report."
+    print("\n--- TEST 2: reader sending (should be blocked) ---")
+    try:
+        sanitizer.validate_request(bad_send_prompt, reader_creds)
+        print("ERROR: this should have been blocked but was allowed")
+    except PermissionError as e:
+        print("Blocked as expected:", e)
+
+    # 3) Blocked: sender asking for passwords
+    sensitive_prompt = "Find any emails that mention my password or 2FA codes."
+    print("\n--- TEST 3: sensitive keywords (should be blocked) ---")
+    try:
+        sanitizer.validate_request(sensitive_prompt, sender_creds)
+        print("ERROR: this should have been blocked but was allowed")
+    except PermissionError as e:
+        print("Blocked as expected:", e)
 
 if __name__ == "__main__":
     # test_client()
     test_server()
+    test_validate_request()
