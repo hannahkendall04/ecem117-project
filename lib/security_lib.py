@@ -213,75 +213,139 @@ class MCPServerSanitizer():
         return response.content
 
 
-    def validate_request(self, prompt: str, creds) -> None:
+    def validate_request(self, prompt: str, creds) -> bool:
         '''
         Validate the legitimacy of an incoming prompt from MCP client. Rather than sanitize/alter the prompt to prevent
         the server from accessing any sensitive information, the goal of this function is to ensure MCP clients only ask for
         and receive information they are authorized to access.
+
         Args:
-            prompt: the prompt from the MCP client 
-            creds: the credentials indicating the identity of the client
+            prompt: the natural language prompt or description of the requested action
+            creds:  a credential object or dict indicating the identity / role of the client
+
+        Returns:
+            True if the request is allowed, otherwise raises PermissionError
         '''
-        if not isinstance(prompt, str) or not prompt.strip():
-            raise ValueError("Prompt must be a non-empty string.")
 
-        # Extract scopes/permissions from whatever structure the caller provides.
-        def _coerce_iterable(value: Any) -> Iterable[str]:
-            if value is None:
-                return []
-            if isinstance(value, str):
-                return [value]
-            if isinstance(value, Iterable):
-                return value
-            return [str(value)]
 
-        scopes = set()
-        if isinstance(creds, Mapping):
-            for key in ("scopes", "permissions", "roles", "allowed_actions"):
-                scopes.update([str(v).lower() for v in _coerce_iterable(creds.get(key))])
+        # Policy Definition (TODO: mvoe to config file later)
+        role_policies = {
+            "reader": {
+                # Can search / read emails, but not send
+                "can_read": True,
+                "can_send": False,
+                # Block obvious data exfiltration attempts for very sensitive info
+                "blocked_keywords": [
+                    "password",
+                    "2fa",
+                    "two factor",
+                    "verification code",
+                    "security code",
+                    "ssn",
+                    "social security",
+                    "api key",
+                    "access token",
+                    "secret key",
+                ],
+            },
+            "sender": {
+                # Can send emails, but not arbitrarily read the inbox
+                "can_read": False,
+                "can_send": True,
+                "blocked_keywords": [
+                    "password",
+                    "2fa",
+                    "two factor",
+                    "verification code",
+                    "security code",
+                    "api key",
+                    "access token",
+                    "secret key",
+                ],
+            },
+            "admin": {
+                # Full access, but still block obviously dangerous content
+                "can_read": True,
+                "can_send": True,
+                "blocked_keywords": [
+                    "api key",
+                    "access token",
+                    "secret key",
+                ],
+            },
+        }
+
+        # Extract role and client id from creds, whether it is a dict or an object
+        role = "reader"
+        client_id = "unknown"
+
+        if isinstance(creds, dict):
+            role = creds.get("role", role)
+            client_id = creds.get("client_id", client_id)
         else:
-            for key in ("scopes", "permissions", "roles", "allowed_actions"):
-                if hasattr(creds, key):
-                    scopes.update([str(v).lower() for v in _coerce_iterable(getattr(creds, key))])
+            # Fallback for simple objects with attributes
+            role = getattr(creds, "role", role)
+            client_id = getattr(creds, "client_id", client_id)
 
-        if not scopes:
-            raise PermissionError("No permissions/scopes provided; cannot authorize request.")
+        policy = role_policies.get(role, role_policies["reader"])
 
-        prompt_lower = prompt.lower()
+        lower_prompt = prompt.lower()
 
-        # Very small heuristic action detector to enforce coarse scopes.
-        def _infer_action(text: str) -> str:
-            if any(word in text for word in ("delete", "remove", "erase", "purge")):
-                return "delete"
-            if any(word in text for word in ("send", "draft", "compose", "forward")):
-                return "send"
-            if any(word in text for word in ("read", "list", "find", "search", "fetch", "view")):
-                return "read"
-            return "unspecified"
+        # Intent detection based on text
+        is_send_request = any(
+            kw in lower_prompt
+            for kw in [
+                "send an email",
+                "send email",
+                "draft an email",
+                "draft email",
+                "compose email",
+                "compose an email",
+                "reply",
+                "forward",
+            ]
+        )
 
-        requested_action = _infer_action(prompt_lower)
+        is_read_request = any(
+            kw in lower_prompt
+            for kw in [
+                "find emails",
+                "search emails",
+                "search the inbox",
+                "read emails",
+                "read my inbox",
+                "list emails",
+                "show emails",
+                "show my emails",
+            ]
+        )
 
-        if "all" not in scopes and requested_action != "unspecified" and requested_action not in scopes:
+        reasons = []
+
+        # Check permission to send and read
+        if is_send_request and not policy["can_send"]:
+            reasons.append("client is not allowed to send email")
+
+        if is_read_request and not policy["can_read"]:
+            reasons.append("client is not allowed to read email")
+
+        # Block obviously sensitive queries even for allowed roles
+        for blocked in policy["blocked_keywords"]:
+            if blocked in lower_prompt:
+                reasons.append(f"prompt contains blocked keyword '{blocked}'")
+
+        if reasons:
+            # Mark request as invalid and raise
+            self.valid_request = False
+            reason_text = "; ".join(reasons)
             raise PermissionError(
-                f"Requested action '{requested_action}' is not permitted for the provided credentials."
+                f"Request from client '{client_id}' is not allowed: {reason_text}"
             )
 
-        # Block obvious attempts to exfiltrate secrets unless the caller explicitly allows sensitive access.
-        sensitive_terms = (
-            "api key",
-            "token",
-            "password",
-            "private key",
-            "ssh key",
-            ".env",
-            "credential",
-            "secret",
-        )
-        if any(term in prompt_lower for term in sensitive_terms) and "sensitive_access" not in scopes:
-            raise PermissionError("Prompt requests sensitive data that this principal is not allowed to access.")
-
+        # At this point the request passed all checks
         self.valid_request = True
-
+        # self.policy = policy
+        return True
 
 
     def clean_data(self, data):
