@@ -37,6 +37,21 @@ def get_gmail_creds():
             token.write(creds.to_json())
     return creds
 
+def get_client_creds():
+    """
+    Derive client credentials for validate_request
+    Get the role from an environment variable
+
+    You can set the following environment variables (when running locally):
+    export MCP_CLIENT_ROLE=sender
+    python mcp_server.py
+
+    export MCP_CLIENT_ROLE=reader
+    python mcp_server.py
+    """
+    role = os.getenv("MCP_CLIENT_ROLE", "reader")
+    client_id = os.getenv("MCP_CLIENT_ID", "default_client")
+    return {"client_id": client_id, "role": role}
 
 # based on https://developers.google.com/workspace/gmail/api/guides/sending#python
 @mcp.tool()
@@ -44,6 +59,10 @@ def gmail_send_email(subject: str, content: str):
     """Create and send an email.
     Returns: Message object, including message id and message meta data.
     """
+    creds = get_client_creds()
+    request_description = f"send an email with subject '{subject}' and body '{content}'"
+    MCPServerSanitizer.validate_request(request_description, creds)  # will raise if not allowed
+
     creds = get_gmail_creds()
 
     try:
