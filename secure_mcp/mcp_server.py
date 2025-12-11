@@ -103,6 +103,10 @@ def gmail_find_emails():
     Search for emails in an inbox and view their contents.
     Returns: a list of found messages and their content.
     """
+    client_creds = get_client_creds_from_gmail()
+    request_description = "read emails from the inbox"
+    sanitizer.validate_request(request_description, client_creds)
+    
     creds = get_gmail_creds()
 
     try:
