@@ -23,7 +23,7 @@ pip install -r requirements.txt
     - Go to the google developer console and create a new project: https://console.cloud.google.com/
     - Go to the APIs and Services page for the project 
     - Click the 'Enable APIs and services' and enable the following APIs:
-        - Generative Language API
+        - Generative Language (Gemini) API
         - Gmail API
     - Go back to the APIs and Services page and select the 'Credentials' tab
     - Click 'Create Credentials' > 'API key'
@@ -37,20 +37,37 @@ pip install -r requirements.txt
         - Any any emails of users you would like to be able to authenticate with 
     - Click 'OAuth consent screen' > 'Data Access' 
         - Add all the Gmail read/write scopes
-    - Setup default application credentials 
-        - I lowkey forgot how I did this, but I think it has something to do with creating a service account? Once you do that, you'll get to a point where you can download another JSON file. Save this to a file called `conf` in the top level directory of this project and add the following line to your .env file: `GOOGLE_APPLICATION_CREDENTIALS="conf"`
+    - Setup default application credentials (getting the conf file)
+        - Go to the credentials page
+        - Click on the service account at the very bottom (you may need to set it up first if this is your first time)
+        - Then you go to the keys tab and click add key > create a new key > json
+        - Then you download the json file and rename it to “conf”
+            - Save this to a file called `conf` in the directory of the mcp that you are running (ie. `vulnerable_mcp` vs `secure_mcp`)
+        - dd the following line to your .env file: `GOOGLE_APPLICATION_CREDENTIALS="conf"`
 
 
 ## Usage Notes 
+If you are in the root, make sure to `cd` into the mcp directory that you want to run:
+```shell
+# the mcp without our imported library
+cd vulnerable_mcp
+
+# the mcp with our library imported
+cd secure_mcp
+```
+
 To run the MCP client:
 
 ```shell 
+# in another terminal
+export MCP_CLIENT_ROLE=sender
 python mcp_client.py
 ```
 
 To run the MCP server:
 
 ```shell 
+export MCP_CLIENT_ROLE=reader
 python mcp_server.py
 ```
 
