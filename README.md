@@ -43,7 +43,8 @@ pip install -r requirements.txt
         - Then you go to the keys tab and click add key > create a new key > json
         - Then you download the json file and rename it to “conf”
             - Save this to a file called `conf` in the directory of the mcp that you are running (ie. `vulnerable_mcp` vs `secure_mcp`)
-        - dd the following line to your .env file: `GOOGLE_APPLICATION_CREDENTIALS="conf"`
+        - add the following line to your .env file: `GOOGLE_APPLICATION_CREDENTIALS="conf"`
+    - add the Gmail you used to set in the .env file as well: `GMAIL_ADMIN_ADDRESS=your_email@gmail.com` (remember to replace `your_email@gmail.com`)
 
 
 ## Usage Notes 
@@ -60,14 +61,12 @@ To run the MCP client:
 
 ```shell 
 # in another terminal
-export MCP_CLIENT_ROLE=sender
 python mcp_client.py
 ```
 
 To run the MCP server:
 
 ```shell 
-export MCP_CLIENT_ROLE=reader
 python mcp_server.py
 ```
 

@@ -31,7 +31,7 @@ class MCPClientSanitizer():
             format="json"
         )
         self.params = {}
-    
+
 
     def sanitize_content(self, content: str) -> str:
         '''
@@ -165,8 +165,98 @@ class MCPServerSanitizer():
         '''
         self.model = ChatOllama(model=model)
         self.valid_request = False 
-        
 
+    # === Helper Functions for validate_request  ===
+
+    def _get_role_policy(self, role: str) -> dict:
+        """
+        Return the access control policy for a given role.
+        """
+        # role policies (note to self: could be moved to config file later)
+        role_policies = {
+            "reader": {
+                "can_read": True,
+                "can_send": False,
+                "blocked_keywords": [
+                    "password",
+                    "2fa",
+                    "two factor",
+                    "verification code",
+                    "security code",
+                    "api key",
+                    "access token",
+                    "secret key",
+                    "social security",
+                    "ssn",
+                ],
+            },
+            "sender": {
+                "can_read": False,
+                "can_send": True,
+                "blocked_keywords": [
+                    "password",
+                    "2fa",
+                    "two factor",
+                    "verification code",
+                    "security code",
+                    "api key",
+                    "access token",
+                    "secret key",
+                    "social security",
+                    "ssn",
+                ],
+            },
+            "admin": {
+                "can_read": True,
+                "can_send": True,
+                # admins are still prevented from using the model to exfiltrate
+                "blocked_keywords": [
+                    "api key",
+                    "access token",
+                    "secret key",
+                ],
+            },
+        }
+
+        # default to reader if unknown
+        return role_policies.get(role, role_policies["reader"])
+
+    def _classify_intent(self, prompt: str) -> str | None:
+        """
+        Very simple heuristic to classify what the client is trying to do.
+        Returns "send", "read", or None.
+        """
+        text = prompt.lower()
+
+        send_markers = [
+            "send an email",
+            "send email",
+            "draft an email",
+            "draft email",
+            "compose email",
+            "compose an email",
+            "reply to this email",
+            "forward this email",
+        ]
+
+        read_markers = [
+            "find emails",
+            "search emails",
+            "search the inbox",
+            "read emails",
+            "read my inbox",
+            "list emails",
+            "show emails",
+            "show my emails",
+        ]
+
+        if any(kw in text for kw in send_markers):
+            return "send"
+        if any(kw in text for kw in read_markers):
+            return "read"
+        return None
+    
+    # === Main Functions ===
     def sanitize_prompt(self, prompt: str) -> str:
         '''
         Sanitize incoming prompt from MCP client. Goal is to mitigate prompt injection attacks.
@@ -212,70 +302,25 @@ class MCPServerSanitizer():
     
         return response.content
 
-
     def validate_request(self, prompt: str, creds) -> bool:
-        '''
-        Validate the legitimacy of an incoming prompt from MCP client. Rather than sanitize/alter the prompt to prevent
-        the server from accessing any sensitive information, the goal of this function is to ensure MCP clients only ask for
-        and receive information they are authorized to access.
+        """
+        Validate the legitimacy of an incoming prompt from MCP client.
+        The goal is to ensure MCP clients only ask for and receive
+        information they are authorized to access.
 
         Args:
-            prompt: the natural language prompt or description of the requested action
-            creds:  a credential object or dict indicating the identity / role of the client
+            prompt: natural-language description of what the client wants to do
+            creds:  credential object/dict indicating identity and role
+                    expected shape: {"client_id": "...", "role": "reader|sender|admin"}
 
         Returns:
-            True if the request is allowed, otherwise raises PermissionError
-        '''
+            True if the request is allowed.
 
+        Raises:
+            PermissionError if the request violates the policy.
+        """
 
-        # Policy Definition (TODO: mvoe to config file later)
-        role_policies = {
-            "reader": {
-                # Can search / read emails, but not send
-                "can_read": True,
-                "can_send": False,
-                # Block obvious data exfiltration attempts for very sensitive info
-                "blocked_keywords": [
-                    "password",
-                    "2fa",
-                    "two factor",
-                    "verification code",
-                    "security code",
-                    "ssn",
-                    "social security",
-                    "api key",
-                    "access token",
-                    "secret key",
-                ],
-            },
-            "sender": {
-                # Can send emails, but not arbitrarily read the inbox
-                "can_read": False,
-                "can_send": True,
-                "blocked_keywords": [
-                    "password",
-                    "2fa",
-                    "two factor",
-                    "verification code",
-                    "security code",
-                    "api key",
-                    "access token",
-                    "secret key",
-                ],
-            },
-            "admin": {
-                # Full access, but still block obviously dangerous content
-                "can_read": True,
-                "can_send": True,
-                "blocked_keywords": [
-                    "api key",
-                    "access token",
-                    "secret key",
-                ],
-            },
-        }
-
-        # Extract role and client id from creds, whether it is a dict or an object
+        # 1) Extract role / client_id from creds (supports dict or simple object)
         role = "reader"
         client_id = "unknown"
 
@@ -283,70 +328,39 @@ class MCPServerSanitizer():
             role = creds.get("role", role)
             client_id = creds.get("client_id", client_id)
         else:
-            # Fallback for simple objects with attributes
             role = getattr(creds, "role", role)
             client_id = getattr(creds, "client_id", client_id)
 
-        policy = role_policies.get(role, role_policies["reader"])
-
+        policy = self._get_role_policy(role)
         lower_prompt = prompt.lower()
-
-        # Intent detection based on text
-        is_send_request = any(
-            kw in lower_prompt
-            for kw in [
-                "send an email",
-                "send email",
-                "draft an email",
-                "draft email",
-                "compose email",
-                "compose an email",
-                "reply",
-                "forward",
-            ]
-        )
-
-        is_read_request = any(
-            kw in lower_prompt
-            for kw in [
-                "find emails",
-                "search emails",
-                "search the inbox",
-                "read emails",
-                "read my inbox",
-                "list emails",
-                "show emails",
-                "show my emails",
-            ]
-        )
+        intent = self._classify_intent(prompt)
 
         reasons = []
 
-        # Check permission to send and read
-        if is_send_request and not policy["can_send"]:
-            reasons.append("client is not allowed to send email")
+        # 2) Enforce intent-specific permissions
+        if intent == "send" and not policy["can_send"]:
+            reasons.append("client role is not allowed to send email")
 
-        if is_read_request and not policy["can_read"]:
-            reasons.append("client is not allowed to read email")
+        if intent == "read" and not policy["can_read"]:
+            reasons.append("client role is not allowed to read email")
 
-        # Block obviously sensitive queries even for allowed roles
-        for blocked in policy["blocked_keywords"]:
-            if blocked in lower_prompt:
-                reasons.append(f"prompt contains blocked keyword '{blocked}'")
+        # 3) Block obviously sensitive queries regardless of intent
+        for kw in policy["blocked_keywords"]:
+            if kw in lower_prompt:
+                reasons.append(f"prompt contains blocked keyword '{kw}'")
 
+        # 4) Final decision
         if reasons:
-            # Mark request as invalid and raise
             self.valid_request = False
+            # self.policy = policy
             reason_text = "; ".join(reasons)
             raise PermissionError(
-                f"Request from client '{client_id}' is not allowed: {reason_text}"
+                f"Request from client '{client_id}' with role '{role}' is not allowed: {reason_text}"
             )
 
-        # At this point the request passed all checks
         self.valid_request = True
         # self.policy = policy
         return True
-
 
     def clean_data(self, data):
         '''

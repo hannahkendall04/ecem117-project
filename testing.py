@@ -40,7 +40,6 @@ def test_validate_request():
 
     sanitizer = MCPServerSanitizer()
 
-    # Example credentials for different roles
     sender_creds = {"client_id": "test_sender", "role": "sender"}
     reader_creds = {"client_id": "test_reader", "role": "reader"}
 

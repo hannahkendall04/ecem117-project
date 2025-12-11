@@ -17,6 +17,10 @@ from google.auth.transport.requests import Request
 
 mcp = FastMCP("Email")
 SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
+sanitizer = MCPServerSanitizer()
+USER_ROLE_MAP = {
+    os.getenv("GMAIL_ADMIN_ADDRESS", "ecem117.project@gmail.com"): "admin",
+}
 
 # based on https://developers.google.com/workspace/gmail/api/quickstart/python
 def get_gmail_creds():
@@ -53,15 +57,28 @@ def get_client_creds():
     client_id = os.getenv("MCP_CLIENT_ID", "default_client")
     return {"client_id": client_id, "role": role}
 
+def get_client_creds_from_gmail():
+    """
+    Use the Gmail API to determine which account authorized the app,
+    then map that email address to a role using USER_ROLE_MAP.
+    """
+    gmail_creds = get_gmail_creds()
+    service = build("gmail", "v1", credentials=gmail_creds)
+    profile = service.users().getProfile(userId="me").execute()
+    email_addr = profile["emailAddress"]
+    role = USER_ROLE_MAP.get(email_addr, "reader")
+    return {"client_id": email_addr, "role": role}
+
 # based on https://developers.google.com/workspace/gmail/api/guides/sending#python
 @mcp.tool()
 def gmail_send_email(subject: str, content: str):
     """Create and send an email.
     Returns: Message object, including message id and message meta data.
     """
-    creds = get_client_creds()
+    # creds = get_client_creds()
+    creds = get_client_creds_from_gmail()
     request_description = f"send an email with subject '{subject}' and body '{content}'"
-    MCPServerSanitizer.validate_request(request_description, creds)  # will raise if not allowed
+    sanitizer.validate_request(request_description, creds)  # will raise if not allowed
 
     creds = get_gmail_creds()
 
@@ -106,7 +123,7 @@ def gmail_find_emails():
     client_creds = get_client_creds_from_gmail()
     request_description = "read emails from the inbox"
     sanitizer.validate_request(request_description, client_creds)
-    
+
     creds = get_gmail_creds()
 
     try:
