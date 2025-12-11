@@ -208,7 +208,7 @@ class MCPServerSanitizer():
         User query: {prompt}
         '''
 
-        response = self.model.invoke(prompt)
+        response = self.model.invoke(server_sanitization_prompt)
     
         return response.content
 
