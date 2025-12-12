@@ -2,6 +2,7 @@
 This project aims to introduce a library that helps mitigate privacy vulnerabilities in systems that utilize the Model Context Protocol (MCP). 
 
 ## Setup
+**IMPORTANT NOTE:** This repository has recently undergone some structural changes to increase clarity for our project submission, and thus the README is partially outdated. If you encounter issues, please let us know so we can guide yoe through the setup process!
 
 **Prerequisites**
 - Have Ollama installed on the machine on which you'd like to use the security package/library. Instructions on how to install Ollama can be found <a href="https://ollama.com/">here</a>.
@@ -50,11 +51,11 @@ pip install -r requirements.txt
 ## Usage Notes 
 If you are in the root, make sure to `cd` into the mcp directory that you want to run:
 ```shell
-# the mcp without our imported library
-cd vulnerable_mcp
+# the mcp without our imported library (approach 2)
+cd approach2/vulnerable_mcp
 
-# the mcp with our library imported
-cd secure_mcp
+# the mcp with our library imported (approach 2)
+cd approach2/secure_mcp
 ```
 
 To run the MCP client:

@@ -4,10 +4,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 import asyncio
 # security imports 
-# FIX PATHS
 from ..lib.security_lib import MCPClientSanitizer
-
-## TO DO - MAKE SECURE ##
 
 client = MultiServerMCPClient(  
     {
@@ -18,6 +15,7 @@ client = MultiServerMCPClient(
         }
     }
 )
+sanitizer = MCPClientSanitizer()
 
 async def run_agent():
     tools = await client.get_tools()  
@@ -42,12 +40,14 @@ async def run_agent():
 
             Email description: {query}
         """
+        sanitized_prompt = sanitizer.sanitize_content(send_prompt)
+        
         draft_response = await agent.ainvoke(
             {
                 "messages": [
                     {
                         "role": "user", 
-                        "content": send_prompt
+                        "content": sanitized_prompt
                     }
                 ]
             }
@@ -75,8 +75,9 @@ async def run_agent():
                 ]
             }
         )
-        print(search_response["messages"][-1].content)
-        # print(search_response) # for debugging
+
+        final_response = sanitizer.embed_sensitive_info(search_response["messages"][-1].content)
+        print(final_response)
 
     else:
         print(f"{option} is not valid.")

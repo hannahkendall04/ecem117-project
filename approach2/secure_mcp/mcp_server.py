@@ -4,10 +4,7 @@ from email.message import EmailMessage
 from dotenv import load_dotenv
 import os
 # security imports
-# FIX PATHS
 from ..lib.security_lib import MCPServerSanitizer
-
-## TO DO - MAKE SECURE ##
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
