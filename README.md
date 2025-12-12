@@ -3,6 +3,8 @@ This project aims to introduce a library that helps mitigate privacy vulnerabili
 
 ## Setup
 **IMPORTANT NOTE:** This repository has recently undergone some structural changes to increase clarity for our project submission, and thus the README is partially outdated. If you encounter issues, please let us know so we can guide yoe through the setup process!
+
+
 Setup for approach 1: https://docs.google.com/document/d/1nXkTQFHYHLMt0YtqPvhXVxhJZyesVJjEimxb8CIy2Go/edit?usp=sharing 
 
 **Prerequisites**
@@ -77,4 +79,5 @@ To run the testing script for the library:
 ```shell
 python testing.py
 ```
+
 
