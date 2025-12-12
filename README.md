@@ -2,7 +2,8 @@
 This project aims to introduce a library that helps mitigate privacy vulnerabilities in systems that utilize the Model Context Protocol (MCP). 
 
 ## Setup
-**IMPORTANT NOTE:** This repository has recently undergone some structural changes to increase clarity for our project submission, and thus the README is partially outdated. If you encounter issues, please let us know so we can guide yoe through the setup process!
+**IMPORTANT NOTE:** This repository has recently undergone some structural changes to increase clarity for our project submission, and thus the README is partially outdated. If you encounter issues, please let us(ecem117.project@gmail.com
+) know so we can guide you through the setup process! 
 
 
 Setup for approach 1: https://docs.google.com/document/d/1nXkTQFHYHLMt0YtqPvhXVxhJZyesVJjEimxb8CIy2Go/edit?usp=sharing 
@@ -82,5 +83,7 @@ To run the testing script for the library:
 python testing.py
 ```
 
+# Have Questions/Want to Keep in Touch 
+For questions/concerns please email us at ecem117.project@gmail.com
 
 
