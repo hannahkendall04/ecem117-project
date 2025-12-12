@@ -8,6 +8,7 @@ This project aims to introduce a library that helps mitigate privacy vulnerabili
 Setup for approach 1: https://docs.google.com/document/d/1nXkTQFHYHLMt0YtqPvhXVxhJZyesVJjEimxb8CIy2Go/edit?usp=sharing 
 
 Other Setups: 
+
 **Prerequisites**
 - Have Ollama installed on the machine on which you'd like to use the security package/library. Instructions on how to install Ollama can be found <a href="https://ollama.com/">here</a>.
     - Pull the llama3.1 model (or some other model) onto your machine using the command `ollama pull llama3.1`
@@ -80,5 +81,6 @@ To run the testing script for the library:
 ```shell
 python testing.py
 ```
+
 
 
