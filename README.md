@@ -3,6 +3,7 @@ This project aims to introduce a library that helps mitigate privacy vulnerabili
 
 ## Setup
 **IMPORTANT NOTE:** This repository has recently undergone some structural changes to increase clarity for our project submission, and thus the README is partially outdated. If you encounter issues, please let us know so we can guide yoe through the setup process!
+Setup for approach 1: https://docs.google.com/document/d/1nXkTQFHYHLMt0YtqPvhXVxhJZyesVJjEimxb8CIy2Go/edit?usp=sharing 
 
 **Prerequisites**
 - Have Ollama installed on the machine on which you'd like to use the security package/library. Instructions on how to install Ollama can be found <a href="https://ollama.com/">here</a>.
@@ -76,3 +77,4 @@ To run the testing script for the library:
 ```shell
 python testing.py
 ```
+
